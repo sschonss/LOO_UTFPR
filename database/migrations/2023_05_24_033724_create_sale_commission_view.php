@@ -34,7 +34,6 @@ return new class extends Migration
 
         DB::statement("CREATE MATERIALIZED VIEW sales_commission_view AS $query");
     }
-
     /**
      * Reverse the migrations.
      */
