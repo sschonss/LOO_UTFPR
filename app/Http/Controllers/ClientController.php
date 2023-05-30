@@ -5,6 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Client;
+use App\Models\User;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Application;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class ClientController extends Controller
 {
@@ -13,9 +20,9 @@ class ClientController extends Controller
      */
     public function index()
     {
-        return view('clients.index', [
-            'clients' => Client::all(),
-        ]);
+        $clients = Client::with('user', 'address')->paginate(10);
+
+        return view('clients.index', compact('clients'));
     }
 
     /**
@@ -23,15 +30,28 @@ class ClientController extends Controller
      */
     public function create()
     {
-        //
+        return view('clients.create');
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreClientRequest $request)
+    public function store(StoreClientRequest $request): RedirectResponse
     {
-        //
+
+        DB::transaction(function () use ($request) {
+            $user = User::create([
+                'name' => $request->get('name'),
+                'email' => $request->get('email'),
+                'password' => Hash::make('password'),
+            ]);
+
+            $user->client()->create([
+                'address_id' => $request->get('address_id'),
+            ]);
+        });
+
+        return redirect()->route('clients.index');
     }
 
     /**
@@ -47,7 +67,12 @@ class ClientController extends Controller
      */
     public function edit(Client $client)
     {
-        //
+        //Object of class App\Models\Address could not be converted to int
+        //return view('clients.edit', compact('client'));
+
+        return view('clients.edit', [
+            'client' => $client,
+        ]);
     }
 
     /**
@@ -55,7 +80,18 @@ class ClientController extends Controller
      */
     public function update(UpdateClientRequest $request, Client $client)
     {
-        //
+        DB::transaction(function () use ($request, $client) {
+            $client->user()->update([
+                'name' => $request->get('name'),
+                'email' => $request->get('email'),
+            ]);
+
+            $client->update([
+                'address_id' => $request->get('address_id'),
+            ]);
+        });
+
+        return redirect()->route('clients.index');
     }
 
     /**
