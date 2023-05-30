@@ -17,6 +17,7 @@ class Client extends Model
         'user_id',
     ];
 
+
     public function address(): BelongsTo
     {
         return $this->belongsTo(Address::class);
