@@ -3,6 +3,7 @@
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use OpenAI\Laravel\Facades\OpenAI;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,12 +24,29 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+Route::middleware('auth')->group(callback: function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::resource('clients', ClientController::class);
+
+    Route::get('/chart', function () {
+
+        $fields = implode(',', \App\Models\SalesCommission::getColumns());
+
+        //dd($fields);
+
+        $question = 'Gere um gráfico das vendas por empresa no eixo y ao longo dos ultimos 5 anos no eixo x';
+
+        $config =  OpenAI::completions()->create([
+            'model' => 'text-davinci-003',
+            'prompt' => 'Considerando a lista de campos: ' . $fields . ' gere uma configuracao json do Vega-Lite v5 (sem campos de dados e com descrição) que atenda o seguinte pedido: ' . $question . ' Resposta: ',
+            'max_tokens' => 1500
+        ])->choices[0]->text;
+
+        dd($config);
+    });
 });
 
 
