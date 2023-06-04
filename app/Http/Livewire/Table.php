@@ -9,10 +9,10 @@ class Table extends Component
 {
     use WithPagination;
 
-    public string $resource;
-    public array $columns;
-    public string $edit;
-    public string $delete;
+    protected string $resource;
+    protected array $columns;
+    protected string $edit;
+    protected string $delete;
 
     public function render()
     {
