@@ -6,7 +6,7 @@
 A Orientação a Objetos é um paradigma de programação que tem como objetivo a representação de entidades do mundo real em forma de objetos.
 Esses objetos possuem características e comportamentos que são definidos por meio de atributos e métodos, respectivamente.
 
-#### 1.1. Pilares da Orientação a Objetos
+### 1.1. Pilares da Orientação a Objetos
 
 A orientação a objetos possui quatro pilares que são: encapsulamento, herança, polimorfismo e abstração.
 
@@ -14,7 +14,7 @@ Nesse trabalho, busquei exemplificar esses pilares no contexto de um sistema de 
 
 ### 2. Exemplos
 
-#### 2.1. Encapsulamento
+### 2.1. Encapsulamento
 
 O encapsulamento é um mecanismo que permite a ocultação de informações de um objeto, ou seja, o acesso a essas informações é restrito.
 
@@ -56,7 +56,7 @@ class Table extends Component
 
 A classe `Table` possui os atributos `$resource`, `$columns`, `$edit` e `$delete`. Esses atributos são protegidos, ou seja, não podem ser acessados diretamente fora da classe.
 
-#### 2.2. Herança
+### 2.2. Herança
 
 A herança é um mecanismo que permite a criação de novas classes a partir de classes já existentes. A classe que é herdada é chamada de classe pai ou superclasse e a classe que herda é chamada de classe filha ou subclasse.
 
@@ -150,7 +150,7 @@ class User extends Model implements
 
 ```
 
-#### 2.3. Polimorfismo
+### 2.3. Polimorfismo
 
 O polimorfismo é um mecanismo que permite que um objeto possa ser referenciado de várias formas.
 
@@ -310,7 +310,7 @@ class StoreClientRequest extends FormRequest
 
 Que por usa vez, herda da classe `FormRequest`
 
-#### 2.4. Abstração
+### 2.4. Abstração
 
 A abstração é o processo de esconder os detalhes de implementação e mostrar apenas a funcionalidade ao usuário.
 
@@ -335,7 +335,7 @@ class SaleController extends Controller
 
 O exemplo acima é um exemplo de abstração, pois o usuário não precisa saber como a view é retornada, apenas que ela é retornada.
 
-#### 2.5. Interface
+### 2.5. Interface
 
 Uma interface é um contrato que especifica quais métodos uma classe deve implementar.
 
@@ -717,7 +717,7 @@ class AuthManager implements FactoryContract
 
 
 
-#### 2.6. Traits
+### 2.6. Traits
 
 Traits são mecanismos que permitem a reutilização de código em linguagens que não suportam herança múltipla.
 
@@ -857,7 +857,7 @@ trait AuthorizesRequests
 }
 ```
 
-#### 2.7. Exceptions
+### 2.7. Exceptions
 
 Exceções são erros que ocorrem durante a execução de um programa. O Laravel possui uma classe `Handler` que é responsável por tratar as exceções que ocorrem durante a execução do programa.
 
@@ -987,7 +987,7 @@ class ClientController extends Controller
 
 ### 3. Extra
 
-#### 3.1. Classe abstrata
+### 3.1. Classe abstrata
 
 Uma classe abstrata é uma classe que não pode ser instanciada, mas pode ser herdada.
 
@@ -1088,7 +1088,7 @@ class Controller extends BaseController
     
 ```
 
-#### 3.2. Enums
+### 3.2. Enums
 
 Um enum é um tipo de dado que consiste em um conjunto de constantes nomeadas.
 
@@ -1149,7 +1149,7 @@ class Sale extends Model
     
 ```
 
-#### 3.3. Docker
+### 3.3. Docker
 
 Docker é uma plataforma de código aberto que permite que você crie, teste e implante aplicativos rapidamente. O Docker pacote aplicativos em contêineres padronizados para executar em qualquer ambiente de trabalho, incluindo nuvem, virtualizados e locais.
 
@@ -1211,11 +1211,11 @@ volumes:
 
 Com o Docker, podemos subir varios containers, como por exemplo o container do `Postgres` que é um banco de dados.
 
-#### 3.4. Eloquent
+### 3.4. Eloquent
 
 O Eloquent ORM incluído com o Laravel fornece uma implementação de ActiveRecord simples e bonita para trabalhar com seu banco de dados. Cada tabela de banco de dados possui um "Model" correspondente que é usado para interagir com essa tabela. Os modelos permitem que você consulte dados em suas tabelas, bem como inserir novos registros na tabela.
 
-#### 3.5. OpenAI API
+### 3.5. OpenAI API
 
 A API do OpenAI é uma API de texto que permite que os desenvolvedores usem os modelos de linguagem de última geração da OpenAI em seus produtos. Ele permite que você envie texto para o modelo e receba texto de volta como resposta.
 
