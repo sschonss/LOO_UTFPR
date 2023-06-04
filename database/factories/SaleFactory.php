@@ -17,14 +17,14 @@ class SaleFactory extends Factory
      *
      * @return array<string, mixed>
      */
-    public function definition(): array
+    public function definition()
     {
         return [
             'seller_id' => Seller::factory(),
             'client_id' => Client::factory(),
-            'sold_at' => $this->faker->dateTimeBetween('-8 year', 'now'),
-            'total_amount' => $this->faker->numberBetween(10000, 10000000),
-            'status' => $this->faker->randomElement(Status::cases()),
+            'sold_at' => fake()->dateTimeBetween('-8 years', '-1 year'),
+            'total_amount' => fake()->numberBetween(10000, 50000),
+            'status' => fake()->randomElement(Status::cases())
         ];
     }
 }

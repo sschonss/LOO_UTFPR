@@ -2,20 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SalesCommission extends Model
 {
-    use HasFactory;
-
-    protected $table = 'sales_commission_view';
-
+    protected $table = "sales_commission_view";
     public $incrementing = false;
-
     public $timestamps = false;
 
-    public static function getColumns(): array
+    public function scopeGetColumns()
     {
         return [
             'company',
@@ -29,6 +24,4 @@ class SalesCommission extends Model
             'commission'
         ];
     }
-
-
 }

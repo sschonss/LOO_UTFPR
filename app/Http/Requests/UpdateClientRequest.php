@@ -8,8 +8,10 @@ class UpdateClientRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
+     *
+     * @return bool
      */
-    public function authorize(): bool
+    public function authorize()
     {
         return true;
     }
@@ -17,14 +19,14 @@ class UpdateClientRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
+     * @return array<string, mixed>
      */
-    public function rules(): array
+    public function rules()
     {
         return [
-            'name' => 'required|string|max:255',
-            'address_id' => 'required',
-            'email' => 'required||email|max:255|unique:users,email,' . $this->client->user->id
+            'name' => 'required',
+            'email' => 'required|unique:users,email,'.$this->client->user->id,
+            'address_id' => 'required'
         ];
     }
 }

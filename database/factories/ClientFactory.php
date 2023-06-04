@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Address;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -16,10 +15,10 @@ class ClientFactory extends Factory
      *
      * @return array<string, mixed>
      */
-    public function definition(): array
+    public function definition()
     {
         return [
-            'address_id' => $this->faker->numberBetween(1, 10),
+            'address_id' => fake()->numberBetween(1, 10),
             'user_id' => User::factory(),
         ];
     }

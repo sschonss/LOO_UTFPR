@@ -14,11 +14,11 @@ class CompanyFactory extends Factory
      *
      * @return array<string, mixed>
      */
-    public function definition(): array
+    public function definition()
     {
         return [
-            'commission_rate' => $this->faker->numberBetween(0, 8),
-            'name' => $this->faker->company,
+            'commission_rate' => fake()->numberBetween(1, 6),
+            'name' => fake()->company()
         ];
     }
 }

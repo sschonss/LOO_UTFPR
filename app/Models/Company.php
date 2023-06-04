@@ -11,14 +11,12 @@ class Company extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name',
         'commission_rate',
+        'name'
     ];
-
 
     public function sellers(): HasMany
     {
         return $this->hasMany(Seller::class);
-
     }
 }
