@@ -35,10 +35,16 @@ class ClientController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \App\Http\Requests\StoreClientRequest  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(StoreClientRequest $request)
+    protected function store(StoreClientRequest $request): \Illuminate\Http\RedirectResponse
     {
+        try {
+            $request->validated();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('clients.create')->withErrors($e->errors());
+        }
+
         DB::transaction(function() use($request) {
             $user = User::create([
                 'email' => $request->get('email'),

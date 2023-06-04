@@ -335,6 +335,654 @@ class SaleController extends Controller
 
 O exemplo acima é um exemplo de abstração, pois o usuário não precisa saber como a view é retornada, apenas que ela é retornada.
 
+#### 2.5. Interface
+
+Uma interface é um contrato que especifica quais métodos uma classe deve implementar.
+
+Temos a interface `Factory` que possui os métodos `guard` e `shouldUse`.
+
+Essa interface é implementada pela classe `AuthManager`.
+
+```php
+<?php
+
+namespace Illuminate\Contracts\Auth;
+
+interface Factory
+{
+    /**
+     * Get a guard instance by name.
+     *
+     * @param  string|null  $name
+     * @return \Illuminate\Contracts\Auth\Guard|\Illuminate\Contracts\Auth\StatefulGuard
+     */
+    public function guard($name = null);
+
+    /**
+     * Set the default guard the factory should serve.
+     *
+     * @param  string  $name
+     * @return void
+     */
+    public function shouldUse($name);
+}
+    
+```
+
+```php
+<?php
+
+namespace Illuminate\Auth;
+
+use Closure;
+use Illuminate\Contracts\Auth\Factory as FactoryContract;
+use InvalidArgumentException;
+
+/**
+ * @mixin \Illuminate\Contracts\Auth\Guard
+ * @mixin \Illuminate\Contracts\Auth\StatefulGuard
+ */
+class AuthManager implements FactoryContract
+{
+    use CreatesUserProviders;
+
+    /**
+     * The application instance.
+     *
+     * @var \Illuminate\Contracts\Foundation\Application
+     */
+    protected $app;
+
+    /**
+     * The registered custom driver creators.
+     *
+     * @var array
+     */
+    protected $customCreators = [];
+
+    /**
+     * The array of created "drivers".
+     *
+     * @var array
+     */
+    protected $guards = [];
+
+    /**
+     * The user resolver shared by various services.
+     *
+     * Determines the default user for Gate, Request, and the Authenticatable contract.
+     *
+     * @var \Closure
+     */
+    protected $userResolver;
+
+    /**
+     * Create a new Auth manager instance.
+     *
+     * @param  \Illuminate\Contracts\Foundation\Application  $app
+     * @return void
+     */
+    public function __construct($app)
+    {
+        $this->app = $app;
+
+        $this->userResolver = fn ($guard = null) => $this->guard($guard)->user();
+    }
+
+    /**
+     * Attempt to get the guard from the local cache.
+     *
+     * @param  string|null  $name
+     * @return \Illuminate\Contracts\Auth\Guard|\Illuminate\Contracts\Auth\StatefulGuard
+     */
+    public function guard($name = null)
+    {
+        $name = $name ?: $this->getDefaultDriver();
+
+        return $this->guards[$name] ?? $this->guards[$name] = $this->resolve($name);
+    }
+
+    /**
+     * Resolve the given guard.
+     *
+     * @param  string  $name
+     * @return \Illuminate\Contracts\Auth\Guard|\Illuminate\Contracts\Auth\StatefulGuard
+     *
+     * @throws \InvalidArgumentException
+     */
+    protected function resolve($name)
+    {
+        $config = $this->getConfig($name);
+
+        if (is_null($config)) {
+            throw new InvalidArgumentException("Auth guard [{$name}] is not defined.");
+        }
+
+        if (isset($this->customCreators[$config['driver']])) {
+            return $this->callCustomCreator($name, $config);
+        }
+
+        $driverMethod = 'create'.ucfirst($config['driver']).'Driver';
+
+        if (method_exists($this, $driverMethod)) {
+            return $this->{$driverMethod}($name, $config);
+        }
+
+        throw new InvalidArgumentException(
+            "Auth driver [{$config['driver']}] for guard [{$name}] is not defined."
+        );
+    }
+
+    /**
+     * Call a custom driver creator.
+     *
+     * @param  string  $name
+     * @param  array  $config
+     * @return mixed
+     */
+    protected function callCustomCreator($name, array $config)
+    {
+        return $this->customCreators[$config['driver']]($this->app, $name, $config);
+    }
+
+    /**
+     * Create a session based authentication guard.
+     *
+     * @param  string  $name
+     * @param  array  $config
+     * @return \Illuminate\Auth\SessionGuard
+     */
+    public function createSessionDriver($name, $config)
+    {
+        $provider = $this->createUserProvider($config['provider'] ?? null);
+
+        $guard = new SessionGuard(
+            $name,
+            $provider,
+            $this->app['session.store'],
+        );
+
+        // When using the remember me functionality of the authentication services we
+        // will need to be set the encryption instance of the guard, which allows
+        // secure, encrypted cookie values to get generated for those cookies.
+        if (method_exists($guard, 'setCookieJar')) {
+            $guard->setCookieJar($this->app['cookie']);
+        }
+
+        if (method_exists($guard, 'setDispatcher')) {
+            $guard->setDispatcher($this->app['events']);
+        }
+
+        if (method_exists($guard, 'setRequest')) {
+            $guard->setRequest($this->app->refresh('request', $guard, 'setRequest'));
+        }
+
+        if (isset($config['remember'])) {
+            $guard->setRememberDuration($config['remember']);
+        }
+
+        return $guard;
+    }
+
+    /**
+     * Create a token based authentication guard.
+     *
+     * @param  string  $name
+     * @param  array  $config
+     * @return \Illuminate\Auth\TokenGuard
+     */
+    public function createTokenDriver($name, $config)
+    {
+        // The token guard implements a basic API token based guard implementation
+        // that takes an API token field from the request and matches it to the
+        // user in the database or another persistence layer where users are.
+        $guard = new TokenGuard(
+            $this->createUserProvider($config['provider'] ?? null),
+            $this->app['request'],
+            $config['input_key'] ?? 'api_token',
+            $config['storage_key'] ?? 'api_token',
+            $config['hash'] ?? false
+        );
+
+        $this->app->refresh('request', $guard, 'setRequest');
+
+        return $guard;
+    }
+
+    /**
+     * Get the guard configuration.
+     *
+     * @param  string  $name
+     * @return array
+     */
+    protected function getConfig($name)
+    {
+        return $this->app['config']["auth.guards.{$name}"];
+    }
+
+    /**
+     * Get the default authentication driver name.
+     *
+     * @return string
+     */
+    public function getDefaultDriver()
+    {
+        return $this->app['config']['auth.defaults.guard'];
+    }
+
+    /**
+     * Set the default guard driver the factory should serve.
+     *
+     * @param  string  $name
+     * @return void
+     */
+    public function shouldUse($name)
+    {
+        $name = $name ?: $this->getDefaultDriver();
+
+        $this->setDefaultDriver($name);
+
+        $this->userResolver = fn ($name = null) => $this->guard($name)->user();
+    }
+
+    /**
+     * Set the default authentication driver name.
+     *
+     * @param  string  $name
+     * @return void
+     */
+    public function setDefaultDriver($name)
+    {
+        $this->app['config']['auth.defaults.guard'] = $name;
+    }
+
+    /**
+     * Register a new callback based request guard.
+     *
+     * @param  string  $driver
+     * @param  callable  $callback
+     * @return $this
+     */
+    public function viaRequest($driver, callable $callback)
+    {
+        return $this->extend($driver, function () use ($callback) {
+            $guard = new RequestGuard($callback, $this->app['request'], $this->createUserProvider());
+
+            $this->app->refresh('request', $guard, 'setRequest');
+
+            return $guard;
+        });
+    }
+
+    /**
+     * Get the user resolver callback.
+     *
+     * @return \Closure
+     */
+    public function userResolver()
+    {
+        return $this->userResolver;
+    }
+
+    /**
+     * Set the callback to be used to resolve users.
+     *
+     * @param  \Closure  $userResolver
+     * @return $this
+     */
+    public function resolveUsersUsing(Closure $userResolver)
+    {
+        $this->userResolver = $userResolver;
+
+        return $this;
+    }
+
+    /**
+     * Register a custom driver creator Closure.
+     *
+     * @param  string  $driver
+     * @param  \Closure  $callback
+     * @return $this
+     */
+    public function extend($driver, Closure $callback)
+    {
+        $this->customCreators[$driver] = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Register a custom provider creator Closure.
+     *
+     * @param  string  $name
+     * @param  \Closure  $callback
+     * @return $this
+     */
+    public function provider($name, Closure $callback)
+    {
+        $this->customProviderCreators[$name] = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Determines if any guards have already been resolved.
+     *
+     * @return bool
+     */
+    public function hasResolvedGuards()
+    {
+        return count($this->guards) > 0;
+    }
+
+    /**
+     * Forget all of the resolved guard instances.
+     *
+     * @return $this
+     */
+    public function forgetGuards()
+    {
+        $this->guards = [];
+
+        return $this;
+    }
+
+    /**
+     * Set the application instance used by the manager.
+     *
+     * @param  \Illuminate\Contracts\Foundation\Application  $app
+     * @return $this
+     */
+    public function setApplication($app)
+    {
+        $this->app = $app;
+
+        return $this;
+    }
+
+    /**
+     * Dynamically call the default driver instance.
+     *
+     * @param  string  $method
+     * @param  array  $parameters
+     * @return mixed
+     */
+    public function __call($method, $parameters)
+    {
+        return $this->guard()->{$method}(...$parameters);
+    }
+}
+
+```
+
+
+
+#### 2.6. Traits
+
+Traits são mecanismos que permitem a reutilização de código em linguagens que não suportam herança múltipla.
+
+Temos a classe `AuthorizesRequests` que possui o método `authorize` que recebe um parâmetro `$ability` e um parâmetro `$arguments` e retorna um objeto do tipo `Response`.
+
+```php
+<?php
+
+namespace Illuminate\Foundation\Auth\Access;
+
+use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Support\Str;
+
+trait AuthorizesRequests
+{
+    /**
+     * Authorize a given action for the current user.
+     *
+     * @param  mixed  $ability
+     * @param  mixed|array  $arguments
+     * @return \Illuminate\Auth\Access\Response
+     *
+     * @throws \Illuminate\Auth\Access\AuthorizationException
+     */
+    public function authorize($ability, $arguments = [])
+    {
+        [$ability, $arguments] = $this->parseAbilityAndArguments($ability, $arguments);
+
+        return app(Gate::class)->authorize($ability, $arguments);
+    }
+
+    /**
+     * Authorize a given action for a user.
+     *
+     * @param  \Illuminate\Contracts\Auth\Authenticatable|mixed  $user
+     * @param  mixed  $ability
+     * @param  mixed|array  $arguments
+     * @return \Illuminate\Auth\Access\Response
+     *
+     * @throws \Illuminate\Auth\Access\AuthorizationException
+     */
+    public function authorizeForUser($user, $ability, $arguments = [])
+    {
+        [$ability, $arguments] = $this->parseAbilityAndArguments($ability, $arguments);
+
+        return app(Gate::class)->forUser($user)->authorize($ability, $arguments);
+    }
+
+    /**
+     * Guesses the ability's name if it wasn't provided.
+     *
+     * @param  mixed  $ability
+     * @param  mixed|array  $arguments
+     * @return array
+     */
+    protected function parseAbilityAndArguments($ability, $arguments)
+    {
+        if (is_string($ability) && ! str_contains($ability, '\\')) {
+            return [$ability, $arguments];
+        }
+
+        $method = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3)[2]['function'];
+
+        return [$this->normalizeGuessedAbilityName($method), $ability];
+    }
+
+    /**
+     * Normalize the ability name that has been guessed from the method name.
+     *
+     * @param  string  $ability
+     * @return string
+     */
+    protected function normalizeGuessedAbilityName($ability)
+    {
+        $map = $this->resourceAbilityMap();
+
+        return $map[$ability] ?? $ability;
+    }
+
+    /**
+     * Authorize a resource action based on the incoming request.
+     *
+     * @param  string|array  $model
+     * @param  string|array|null  $parameter
+     * @param  array  $options
+     * @param  \Illuminate\Http\Request|null  $request
+     * @return void
+     */
+    public function authorizeResource($model, $parameter = null, array $options = [], $request = null)
+    {
+        $model = is_array($model) ? implode(',', $model) : $model;
+
+        $parameter = is_array($parameter) ? implode(',', $parameter) : $parameter;
+
+        $parameter = $parameter ?: Str::snake(class_basename($model));
+
+        $middleware = [];
+
+        foreach ($this->resourceAbilityMap() as $method => $ability) {
+            $modelName = in_array($method, $this->resourceMethodsWithoutModels()) ? $model : $parameter;
+
+            $middleware["can:{$ability},{$modelName}"][] = $method;
+        }
+
+        foreach ($middleware as $middlewareName => $methods) {
+            $this->middleware($middlewareName, $options)->only($methods);
+        }
+    }
+
+    /**
+     * Get the map of resource methods to ability names.
+     *
+     * @return array
+     */
+    protected function resourceAbilityMap()
+    {
+        return [
+            'index' => 'viewAny',
+            'show' => 'view',
+            'create' => 'create',
+            'store' => 'create',
+            'edit' => 'update',
+            'update' => 'update',
+            'destroy' => 'delete',
+        ];
+    }
+
+    /**
+     * Get the list of resource methods which do not have model parameters.
+     *
+     * @return array
+     */
+    protected function resourceMethodsWithoutModels()
+    {
+        return ['index', 'create', 'store'];
+    }
+}
+```
+
+#### 2.7. Exceptions
+
+Exceções são erros que ocorrem durante a execução de um programa. O Laravel possui uma classe `Handler` que é responsável por tratar as exceções que ocorrem durante a execução do programa.
+
+No exemplo abaixo, temos o método `store` da classe `ClientController` que recebe um objeto do tipo `StoreClientRequest` e retorna um objeto do tipo `Response`.
+
+Antes de retornar o é feito um `try/catch` para tratar as exceções que podem ocorrer durante a execução do método e validar se a requisição é válida.
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreClientRequest;
+use App\Http\Requests\UpdateClientRequest;
+use App\Models\Client;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+
+class ClientController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
+     */
+    public function index(): \Illuminate\Contracts\View\View|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\Foundation\Application
+    {
+        return view('clients.index');
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function create()
+    {
+        return view('clients.create');
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \App\Http\Requests\StoreClientRequest  $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    protected function store(StoreClientRequest $request): \Illuminate\Http\RedirectResponse
+    {
+        try {
+            $request->validated();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('clients.create')->withErrors($e->errors());
+        }
+
+        DB::transaction(function() use($request) {
+            $user = User::create([
+                'email' => $request->get('email'),
+                'name' => $request->get('name'),
+                'password' => Hash::make('123456')
+            ]);
+
+            $user->client()->create([
+                'address_id' => $request->get('address_id'),
+            ]);
+        });
+
+        return redirect()->route('clients.index');
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @param  \App\Models\Client  $client
+     * @return \Illuminate\Http\Response
+     */
+    public function edit(Client $client)
+    {
+        return view('clients.edit', compact('client'));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param  \App\Http\Requests\UpdateClientRequest  $request
+     * @param  \App\Models\Client  $client
+     * @return \Illuminate\Http\Response
+     */
+    public function update(UpdateClientRequest $request, Client $client)
+    {
+        DB::transaction(function() use($request, $client) {
+            $client->user->update([
+                'email' => $request->get('email'),
+                'name' => $request->get('name')
+            ]);
+
+            $client->update([
+                'address_id' => $request->get('address_id'),
+            ]);
+        });
+
+        return redirect()->route('clients.index');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  \App\Models\Client  $client
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\Response
+     */
+    public function destroy(Client $client): \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+    {
+
+        DB::transaction(function () use ($client) {
+            $client->user->delete();
+            $client->delete();
+        });
+
+        return redirect()->route('clients.index');
+
+    }
+}
+
+```
+
 ---
 
 ### 3. Extra
@@ -499,7 +1147,7 @@ class Sale extends Model
     }
 }
     
-``` 
+```
 
 #### 3.3. Docker
 
