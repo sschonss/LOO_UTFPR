@@ -1090,9 +1090,9 @@ class Controller extends BaseController
 
 ### 3.2. Enums
 
-Um enum é um tipo de dado que consiste em um conjunto de constantes nomeadas.
+Um enum é um modelo de dado que consiste em um conjunto de constantes nomeadas.
 
-Temos a classe `Status` que é um enum.
+Temos que `Status` que é um enum.
 
 ```php
 <?php

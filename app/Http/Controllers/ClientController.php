@@ -39,12 +39,6 @@ class ClientController extends Controller
      */
     protected function store(StoreClientRequest $request): \Illuminate\Http\RedirectResponse
     {
-        try {
-            $request->validated();
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return redirect()->route('clients.create')->withErrors($e->errors());
-        }
-
         DB::transaction(function() use($request) {
             $user = User::create([
                 'email' => $request->get('email'),
